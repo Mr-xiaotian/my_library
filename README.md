@@ -20,3 +20,36 @@ ThreadManager 是一个线程管理器，可以并行、串行或异步地执行
 - get_result_dict(): 这个方法返回结果字典。
 
 该程序还包括一个 ExampleThreadManager 类，这是 ThreadManager 类的子类，作为一个使用示例。ExampleThreadManager 类定义了如何从任务对象中获取函数参数、如何处理结果和错误等具体细节。
+
+## find_differ
+这是一个用于对比字符串或字典的Python脚本。它包括以下主要函数：
+
+fd_str(a, b, split_str='\n')：此函数接收两个字符串（a和b）以及一个可选的分隔符（默认为换行符）作为输入。然后，它打印出两个字符串的长度和不同之处（根据提供的分隔符进行划分）。
+
+fd_dict(dict_a, dict_b)：此函数接收两个字典（dict_a和dict_b）作为输入。它对比这两个字典的键和值，并打印出它们的不同之处。
+
+compare_strings(str1: str, str2: str) -> None：此函数接收两个字符串作为输入并找出它们的不同之处。如果两个字符串完全一致，它会打印出"完全一致"。否则，它会找出并打印出两个字符串的不同之处。
+
+print_diffs(input_str: str, diff_ranges: list, nor_end='\033[0m', dif_end='\033[1m') -> None：此函数打印出两个字符串的不同之处。它接收一个输入字符串、一个包含差异范围的列表以及两个可选的终止符（默认为'\033[0m'和'\033[1m'）作为输入。
+
+此外，该脚本使用了一个名为common_functions的外部模块，但无法从脚本中直接看到其具体内容。
+
+以下是一个简单的使用示例：
+
+```
+python
+Copy code
+import find_differ as fd
+
+# 使用字符串对比函数
+str_a = "Hello, World!"
+str_b = "Hello, OpenAI!"
+fd.fd_str(str_a, str_b)
+
+# 使用字典对比函数
+dict_a = {"key1": "value1", "key2": "value2"}
+dict_b = {"key1": "value1", "key2": "value3"}
+fd.fd_dict(dict_a, dict_b)
+```
+
+在运行脚本之前，请确保common_functions模块已经在相同的目录下。
