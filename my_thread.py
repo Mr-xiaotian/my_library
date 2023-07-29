@@ -51,7 +51,9 @@ class ThreadWorker(Thread):
                     self.new_task_queue.put(new_task)
         except Exception as e:
             self.exception = e
-            self.exc_traceback = "".join(traceback.format_exception(*sys.exc_info()))
+            self.exc_traceback = "".join(
+                traceback.format_exception(*sys.exc_info())
+                )
 
 
     def get_exception(self):
@@ -168,7 +170,8 @@ class ThreadManager:
         """
         threads = []
         for d in dictory:
-            thread = ThreadWorker(self.func, self.get_args(d), self.result_queue, d, self.new_task_queue)
+            thread = ThreadWorker(self.func, self.get_args(d), 
+                                  self.result_queue, d, self.new_task_queue)
             threads.append(thread)
             thread.start()
 
@@ -207,7 +210,9 @@ class ThreadManager:
                     logger.info(f"Task {d} failed and has been requeued.")
                 else:
                     self.error_list.append(d)
-                    self.error_dict[d] = "".join(traceback.format_exception(*sys.exc_info()))
+                    self.error_dict[d] = "".join(
+                        traceback.format_exception(*sys.exc_info())
+                        )
                     logger.info(f"Task {d} failed and reached the retry limit.")
             else:
                 logger.info(f"Task {d} completed successfully.")
@@ -239,7 +244,9 @@ class ThreadManager:
                     logger.info(f"Task {d} failed and has been requeued.")
                 else:
                     self.error_list.append(d)
-                    self.error_dict[d] = "".join(traceback.format_exception(*sys.exc_info()))
+                    self.error_dict[d] = "".join(
+                        traceback.format_exception(*sys.exc_info())
+                        )
                     logger.info(f"Task {d} failed and reached the retry limit.")
             else:
                 logger.info(f"Task {d} completed successfully.")
