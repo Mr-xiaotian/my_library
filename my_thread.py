@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-#版本 2.00
+#版本 2.10
 #作者：晓天, GPT-4
-#时间：28/7/2023
+#时间：30/7/2023
 
 # We import the necessary modules
 import sys
 import asyncio
 import traceback
-from math import ceil
 from loguru import logger
 from queue import Queue
 from threading import Thread
+from tqdm import tqdm
+from tqdm.asyncio import tqdm as tqdm_asy
 
 # Configure logging
 logger.remove()  # remove the default handler
@@ -65,7 +66,8 @@ class ThreadWorker(Thread):
 
 # We redefine the ThreadManager class
 class ThreadManager:
-    def __init__(self, func, pool=None, thread_num=50, max_retries=3):
+    def __init__(self, func, pool=None, thread_num=50, max_retries=3, 
+                 tqdm_desc="Processing", show_progress=False):
         """
         初始化 ThreadManager
 
@@ -85,6 +87,9 @@ class ThreadManager:
         self.error_list = []
         self.error_dict = {}
         self.retries_dict = {}
+
+        self.tqdm_desc = tqdm_desc
+        self.show_progress = show_progress
 
     def get_args(self, obj):
         """
@@ -119,12 +124,13 @@ class ThreadManager:
         start_type: 启动类型，可以是 'serial'、'parallel' 或 'async'
         """
         logger.info(f"{__name__} desk prepare start by {start_type}.")
+
         # Convert dictory to a Queue
         self.dictory_queue = Queue()
         for item in dictory:
             self.dictory_queue.put(item)
             self.retries_dict[item] = 0
-
+    
         while not self.dictory_queue.empty():
             chunk = []
             for _ in range(
@@ -147,6 +153,7 @@ class ThreadManager:
         dictory: 任务列表
         """
         logger.info(f"{__name__} desk prepare start by async(await).")
+
         # Convert dictory to a Queue
         self.dictory_queue = Queue()
         for item in dictory:
@@ -160,7 +167,7 @@ class ThreadManager:
                 ):
                 chunk.append(self.dictory_queue.get())
             await self.run_in_async(chunk)
-
+ 
     def run_in_parallel(self, dictory):
         """
         并行地执行任务
@@ -175,7 +182,7 @@ class ThreadManager:
             threads.append(thread)
             thread.start()
 
-        for thread, d in zip(threads, dictory):
+        for thread, d in tqdm(zip(threads, dictory)):
             thread.join()
             if thread.get_exception()[0] is not None:
                 if self.retries_dict[d] < self.max_retries:
@@ -196,7 +203,7 @@ class ThreadManager:
         参数:
         dictory: 任务列表
         """
-        for d in dictory:
+        for d in tqdm(dictory):
             try:
                 result = self.func(*self.get_args(d))
                 self.result_dict[d] = result
@@ -230,6 +237,7 @@ class ThreadManager:
             task = asyncio.create_task(self.func(*self.get_args(d)))
             tasks.append(task)
 
+        progress_bar = tqdm_asy(total=len(dictory), desc=self.tqdm_desc) if self.show_progress else None
         for task, d in zip(tasks, dictory):
             try:
                 result = await task
@@ -250,6 +258,9 @@ class ThreadManager:
                     logger.info(f"Task {d} failed and reached the retry limit.")
             else:
                 logger.info(f"Task {d} completed successfully.")
+            progress_bar.update(1) if self.show_progress else None
+
+        progress_bar.close() if self.show_progress else None
 
     def get_result_dict(self):
         """
