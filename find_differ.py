@@ -110,4 +110,4 @@ if __name__ == '__main__':
     #dict_2, dict_3 = cf.deal_cookie(com_d,com_f)
     #fd_dict(dict_0,dict_1)
 
-    # fd_str(com_a, com_b, '; ')
+    fd_str(com_a, com_b, '; ')

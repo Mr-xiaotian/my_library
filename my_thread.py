@@ -7,6 +7,7 @@
 import sys
 import asyncio
 import traceback
+from time import time
 from loguru import logger
 from queue import Queue
 from threading import Thread
@@ -47,9 +48,9 @@ class ThreadWorker(Thread):
             result = self.func(*self.args)
             if self.result_queue is not None:
                 self.result_queue.put({self.task: result})
-            if isinstance(result, list) and self.new_task_queue is not None:
-                for new_task in result:
-                    self.new_task_queue.put(new_task)
+            # if isinstance(result, list) and self.new_task_queue is not None:
+            #     for new_task in result:
+            #         self.new_task_queue.put(new_task)
         except Exception as e:
             self.exception = e
             self.exc_traceback = "".join(
@@ -75,6 +76,9 @@ class ThreadManager:
         func: 可调用对象
         pool: 线程池（未在代码中使用）
         thread_num: 线程数量
+        max_retries: 任务的最大重试次数
+        tqdm_desc: 进度条显示名称
+        show_progress: 进度条显示与否
         """
         self.func = func
         self.pool = pool
@@ -182,7 +186,8 @@ class ThreadManager:
             threads.append(thread)
             thread.start()
 
-        for thread, d in tqdm(zip(threads, dictory)):
+        progress_bar = tqdm(total=len(dictory), desc=self.tqdm_desc) if self.show_progress else None
+        for thread, d in zip(threads, dictory):
             thread.join()
             if thread.get_exception()[0] is not None:
                 if self.retries_dict[d] < self.max_retries:
@@ -195,6 +200,9 @@ class ThreadManager:
                     logger.info(f"Task {d} failed and reached the retry limit.")
             else:
                 logger.info(f"Task {d} completed successfully.")
+            progress_bar.update(1) if self.show_progress else None
+
+        progress_bar.close() if self.show_progress else None
 
     def run_in_serial(self, dictory):
         """
@@ -203,13 +211,14 @@ class ThreadManager:
         参数:
         dictory: 任务列表
         """
-        for d in tqdm(dictory):
+        progress_bar = tqdm(total=len(dictory), desc=self.tqdm_desc) if self.show_progress else None
+        for d in dictory:
             try:
                 result = self.func(*self.get_args(d))
                 self.result_dict[d] = result
-                if isinstance(result, list):
-                    for new_task in result:
-                        self.new_task_queue.put(new_task)
+                # if isinstance(result, list):
+                #     for new_task in result:
+                #         self.new_task_queue.put(new_task)
             except Exception as e:
                 if self.retries_dict[d] < self.max_retries:
                     self.dictory_queue.put(d)
@@ -223,6 +232,9 @@ class ThreadManager:
                     logger.info(f"Task {d} failed and reached the retry limit.")
             else:
                 logger.info(f"Task {d} completed successfully.")
+            progress_bar.update(1) if self.show_progress else None
+
+        progress_bar.close() if self.show_progress else None
                 
 
     async def run_in_async(self, dictory):
@@ -242,9 +254,9 @@ class ThreadManager:
             try:
                 result = await task
                 self.result_dict[d] = result
-                if isinstance(result, list):
-                    for new_task in result:
-                        self.new_task_queue.put(new_task)
+                # if isinstance(result, list):
+                #     for new_task in result:
+                #         self.new_task_queue.put(new_task)
             except Exception as e:
                 if self.retries_dict[d] < self.max_retries:
                     self.dictory_queue.put(d)
@@ -281,6 +293,28 @@ class ThreadManager:
         获取错误列表
         """
         return self.error_dict
+    
+    def test_methods(self, dictory):
+        # Prepare the results dictionary
+        results = {}
+
+        # Test run_in_serial
+        start = time()
+        self.run_in_serial(dictory)
+        results['run_in_serial  '] = time() - start
+
+        # Test run_in_parallel
+        start = time()
+        self.run_in_parallel(dictory)
+        results['run_in_parallel'] = time() - start
+
+        # Test run_in_async
+        start = time()
+        asyncio.run(self.run_in_async(dictory))
+        results['run_in_async   '] = time() - start
+
+        # Return the results
+        return results
 
 
 # As an example of use, we redefine the subclass of ThreadManager
@@ -315,20 +349,26 @@ class ExampleThreadManager(ThreadManager):
         for d, error in error_dict.items():
             print(f"Error in task {d}: {error}")
 
-def generate_new_tasks(n):
+async def generate_new_tasks(n):
     return [i for i in range(n, n+5)]
 
 
 if __name__ == "__main__":
     # We instantiate the ThreadManager
-    manager = ExampleThreadManager(generate_new_tasks, thread_num=10)
+    manager = ExampleThreadManager(generate_new_tasks, thread_num=10, 
+                                   show_progress=False)
 
     # We start the threads
     manager.start(range(100), start_type="parallel")
 
-    # We process the results
-    manager.process_result()
+    # # We process the results
+    # manager.process_result()
 
-    # We handle the errors
-    manager.handle_error()
+    # # We handle the errors
+    # manager.handle_error()
+
+    # Assuming dictory is the list of tasks you want to test
+    from pprint import pprint
+    results = manager.test_methods(range(10))
+    pprint(results)
 
